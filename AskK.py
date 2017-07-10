@@ -22,14 +22,14 @@ what = int(input('''What api you want?
 what==0
 
 if what==1:
-    print('Using the product codes api!\n\n')
+    print('Getting Product Codes from Ask Kodiak. Product Codes are the short codes used to indicate lines of business or coverage!\n\n')
     productcodes = requests.get('https://api.askkodiak.com/v1/ref-data/product-codes', headers=headers, params=params, auth=(GROUP_ID, KEY))
     productcodes = productcodes.json()
     for productcode in productcodes:
         print(productcode, productcodes[productcode])
 
 if what==2:
-    print('Using the NAICs codes api!\n\n')
+    print('Getting NAICS codes, description and Hash from Ask kodiak\n\n')
     r=requests.get('https://api.askkodiak.com/v1/naics/codes', headers=headers, params=params, auth=(GROUP_ID, KEY))
     a=r.json()
     print(a)
