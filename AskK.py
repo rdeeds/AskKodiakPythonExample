@@ -14,7 +14,7 @@ params = (
 what = int(input('''What api you want?
 1. Get all products and codes
 2. Get all NAICs codes
-3. Get products per NAIC - not working
+3. Get products per NAIC
 4.
 
 '''))
