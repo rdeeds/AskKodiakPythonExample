@@ -1,5 +1,5 @@
 import requests
-from pubconfig import GROUP_ID,KEY
+from config import GROUP_ID,KEY
 
 
 def isint(s):
@@ -20,100 +20,49 @@ params = (
 )
 #f = open("test.txt", "wb")
 
-what = int(input('''What api you want?
-1. Get all products and codes
-2. Get NAICs codes
-3. Get products per NAIC
-4.
-
-'''))
+print(''' Simple Ask Kodiak Search - Wizard that guides user through finding carrier appetite''')
 
 finallist=[]
 
-what==0
+def kodiakwizard():
+    hash=''
+    hitlist = []
+    continuecheck = 1
+    while continuecheck:
+        print('Using Ask Kodiak Search')
+        term = input('What business type are you trying to get coverage for?(SIC, NAIC, Text works)\n\n: ')
+        r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
+        returnfromak = r.json()
+        hits = returnfromak['hits']
+        for hitcount, item in enumerate(hits):
+            hitlist.append([hitcount+1, item['description'], item['hash']])
 
-if what==1:
-    print('Getting Product Codes from Ask Kodiak. Product Codes are the short codes used to indicate lines of business or coverage!\n\n')
-    productcodes = requests.get('https://api.askkodiak.com/v1/ref-data/product-codes', headers=headers, params=params, auth=(GROUP_ID, KEY))
-    productcodes = productcodes.json()
-    for productcode in productcodes:
-        print(productcode, productcodes[productcode])
+        for item in hitlist:
+            print(item[0], item[1])
 
-if what==2:
-    naiccode = input('''What Naics code do you want to look for?
-Use a number or words to search. It will return the hash.
-Enter all to see all\n\n''')
+        continuecheck = int(input(
+            '\n\nWhich specific industry does the client fall most closely into from the above list?(Enter the number or 0 to search again)\n\n'))
 
-    r = requests.get('https://api.askkodiak.com/v1/naics/codes', headers=headers, params=params, auth=(GROUP_ID, KEY))
-    a = r.json()
+        if int(continuecheck) == 0:
+            kodiakwizard()
 
-    #print('\n\n',a,'\n\n','END')
-    desclist=[]
-    matchlist=[]
+        for item in hitlist:
+            if item[0] == int(continuecheck):
+                print(item[1] + '- Ok getting carries that want this business from you!!!\n\n')
+                hash=item[2]
 
-    if isint(naiccode):
-        naiccode=int(naiccode)
-        for item in a:
-            print(a[item]['code'])
-    else:
-        matchcount =0
-        for item in a:
-            #print(item)
-            desclist.append([a[item]['description'],item])
-            #print('String:', naiccode)
-
-        for count, desc in enumerate(desclist):
-            #print(desc[0])
-            if naiccode.lower() in desc[0].lower():
-                #print(count,desc[0],desc[1])
-                matchlist.append(desc)
-
-        for matchcount,matched in enumerate(matchlist):
-            print('#'+str(matchcount),matched[0])
-            finallist.append([matchcount+1,matched[0],matched[1]])
-
-        choice=input('For which specific industry are you looking for appetite guidance on?(enter number)')
-
-        for item in finallist:
-            if item[0]==int(choice):
-                print(item[1])
+                r = requests.get(
+                    'https://api.askkodiak.com/v1/products/class-code/naics/'+hash,headers=headers,  auth=(GROUP_ID, KEY))
+                #print(r.json())
+                products=r.json()
+                products=products['results']
+                for product in products:
+                    try:
+                        print(product['access']['website']['link'],'   ',product['name'],
+                          '\nMin: ',product['premiumSize']['min'],' Max: ',product['premiumSize']['max'],'\n'
+                          ,product['description'],'\n\n')
+                    except:
+                        'Missing elements'
 
 
-
-
-
-
-
-
-
-
-    if naiccode == 'all':
-        print('Getting NAICS codes, description and Hash from Ask kodiak\n\n')
-        for item in a:
-            b=item
-            #print('Hash: ',item,'\n','Desc: ', a[item]['description'],'\n','NAICS Code: ', a[item]['code'],'\n')
-
-if what == 3:
-    print('Using Products - Eligible for Code api!\n\n')
-    r = requests.get('https://api.askkodiak.com/v1/products/class-code/naics/84531ff38d1969f1bcfad7c7c9af2737', headers=headers, params=params, auth=(GROUP_ID, KEY))
-    print(r.headers,r.content,r.status_code)
-    a = r.json()
-    print(a)
-    for item in a:
-        print(item)
-##https://api.askkodiak.com/v1/products/class-code/naics/
-if what==4:
-    print('Using Products - Eligible for Code api!\n\n')
-    r=requests.get('https://api.askkodiak.com/v1/products/class-code/naics/61774babbf3242da591ee25e1f6fb29e', headers=headers, params=params, auth=(GROUP_ID, KEY))
-    print(r.headers,r.content,r.status_code)
-    a=r.json()
-    print(a)
-    for item in a:
-        print(item)
-
-if what==5:
-    print('Using Products -')
-    r = requests.get('https://api.askkodiak.com/v1/products/class-code/naics/f231259a3c1e4c2be791b5370aec4ee0',headers=headers, params=params, auth=(GROUP_ID, KEY))
-    print(r.json())
-
-
+kodiakwizard()
