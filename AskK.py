@@ -1,5 +1,5 @@
 import requests
-from config import GROUP_ID,KEY
+from pubconfig import GROUP_ID,KEY
 
 
 def isint(s):
