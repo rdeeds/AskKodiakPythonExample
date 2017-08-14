@@ -1,5 +1,5 @@
 import requests
-from pubconfig import GROUP_ID,KEY
+from config import GROUP_ID,KEY
 
 
 def isint(s):
@@ -26,9 +26,10 @@ finallist=[]
 
 def kodiakwizard():
     hash=''
-    hitlist = []
+
     continuecheck = 1
     while continuecheck:
+        hitlist = []
         print('Using Ask Kodiak Search')
         term = input('What business type are you trying to get coverage for?(SIC, NAIC, Text works)\n\n: ')
         r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
