@@ -171,11 +171,11 @@ def finalresults(phonenumber, numericresult):
         output = 'No Results! Darn it Try again!'
     else:
         output=output +'\n Carrier Details in this file: https//uyht3.pythonanywhere.com/static/fileupload/'+fname+'.csv'
-        with open('/home/uyht3/static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
+        with open('/home/uyht3/AK/static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
             keys = listofcarriers[0].keys()
             dict_writer = csv.DictWriter(output_file, keys)
             dict_writer.writeheader()
-            dict_writer.writerows(listofcarriers)
+            dict_writer.writerows(listofcarriers[1:])
             print()
 
 
