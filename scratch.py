@@ -1,13 +1,8 @@
-import csv
+from tinydb import TinyDB, Query
 
-incomingnumber='+18134699727'
-with open('state.csv') as csvfile:
-    reader = csv.DictReader(csvfile)
+phasedb = TinyDB('phase.json')
+hashdb = TinyDB('hash.json')
 
-    for row in reader:
-        if row['number']==incomingnumber:
-            print('got ya')
-            print(row['phase'])
-
-
-
+for item in hashdb:
+    if item['id']==int('5'):
+        print(item['hash'])
