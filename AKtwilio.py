@@ -116,7 +116,7 @@ def finalresults(phonenumber, numericresult):
     hash = ''
     desc =''
     for item in hashdb:
-        if item['id'] == int(numericresult):
+        if item['id'] == int(numericresult) and item['phonenumber']==phonenumber:
             hash = item['hash']
             desc=item['desc']
     twilio_send(phonenumber, 'Retrieving products for {} - visit www.askkodiak.com for more!'.format(desc))
@@ -171,7 +171,7 @@ def finalresults(phonenumber, numericresult):
         output = 'No Results! Darn it Try again!'
     else:
         output=output +'\n Carrier Details in this file: https//uyht3.pythonanywhere.com/static/fileupload/'+fname+'.csv'
-        with open('/home/uyht3/AK/static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
+        with open('/home/uyht3/static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
             keys = listofcarriers[0].keys()
             dict_writer = csv.DictWriter(output_file, keys)
             dict_writer.writeheader()
