@@ -1,4 +1,4 @@
-import requests, csv
+import requests, csv, random
 from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN
 from tinydb import TinyDB, Query
 from flask import Flask, request, redirect, Response, redirect
@@ -9,6 +9,7 @@ client = Client(ACCOUNT_SID, AUTH_TOKEN)  # twilio connection www.twilio.com - g
 
 phasedb = TinyDB('phase.json')  # www.tinydb.com holds the phases per user
 hashdb = TinyDB('hash.json')  # holds the returned results so hash can be used
+debuggdb = TinyDB('debugg.json')
 
 headers = {  # for AK
     'Accept': 'application/json',
@@ -26,6 +27,16 @@ def isint(s):
     except ValueError:
         return False
 
+def randalphnum(count):
+    string = 'abcdefghijklmnopqrstuwxyz1234567890'
+    final=''
+    while count > 0:
+        a=''.join(random.choice(string))
+        count-=1
+        final=final+a
+    return final
+
+
 
 @app.route("/listen", methods=['GET', 'POST'])
 def twilioinput():
@@ -33,8 +44,13 @@ def twilioinput():
 
     if from_number:
         incomingtxtbody = request.values.get('Body', None)
+        debuggdb.insert({'phonenumber': from_number, 'response': incomingtxtbody})
         output=entrypoint(from_number,incomingtxtbody)
         twilio_send(from_number,output)
+        if incomingtxtbody=='0':
+            router(from_number,'hi',0)
+            return 'Disco'
+
         return 'Disco'
     else:
         return 'No number'
@@ -79,7 +95,7 @@ def whatbusiness(phonenumber):
 def specificbusiness(phonenumber, term):
     '''10 search results returned for users in phase 1 '''
     twilio_send(phonenumber,'Please wait while we grab the list - it takes a few seconds - check out www.askkodiak.com while you wait')
-    output = '\n\nWhich specific industry does the client fall most closely into from the above list?(Enter the number or 0 to search again)\n\n'
+    output = '\n\nWhich specific industry does the client fall most closely into from the list?(Enter the number or 0 to search again)\n\n'
     r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
     returnfromak = r.json()
     hits = returnfromak['hits']
@@ -111,6 +127,10 @@ def finalresults(phonenumber, numericresult):
     print(products)
     products = products['results']
     output = ''
+    listofcarriers = []
+    listofcarriers.append(
+        {'lob': 'lob', 'carriername': 'carriername', 'ambestrating': 'ambestrating', 'carrierphone': 'carrierphone', 'carriersite': 'carriersite'})
+
     for product in products:
         # print(product['ownerId'])
         o = requests.get(
@@ -120,15 +140,28 @@ def finalresults(phonenumber, numericresult):
         # print('*'*100,'\n',owner,'\n')
         carriername = owner.get('name', 'No Company Name')
         lob = product.get('name', 'No Product Name')
-        ambest = owner.get('amBest', {'rating': None})
-        ambestrating = owner.get('rating', 'No Ambest')
+        ambest = owner.get('amBest', {'rating': 'No Ambest'})
+        ambestrating = ambest.get('rating', 'No Ambest')
         carrierphone = owner.get('phone', 'No Phone')
         carriersite = owner.get('website', 'No site')
 
         output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '  \n\n'
+        listofcarriers.append({'lob':lob,'carriername':carriername,'ambestrating':ambestrating,'carrierphone':carrierphone,'carriersite':carriersite})
+        fname=randalphnum(15)
 
     if len(output)<5:
         output = 'No Results! Darn it Try again!'
+    else:
+        output=output +'\n Carrier Details in this file: https//uyht3.pythonanywhere.com/static/fileupload/'+fname+'.csv'
+        with open('static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
+            keys = listofcarriers[0].keys()
+            dict_writer = csv.DictWriter(output_file, keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(listofcarriers)
+            print()
+
+
+
     print(output)
     query = Query()
     hashdb.remove(query.phonenumber == phonenumber)
