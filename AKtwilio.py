@@ -108,6 +108,7 @@ def finalresults(phonenumber, numericresult):
         'https://api.askkodiak.com/v1/products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
 
     products = r.json()
+    print(products)
     products = products['results']
     output = ''
     for product in products:
@@ -126,6 +127,8 @@ def finalresults(phonenumber, numericresult):
 
         output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '  \n\n'
 
+    if len(output)<5:
+        output = 'No Results! Darn it Try again!'
     print(output)
     query = Query()
     hashdb.remove(query.phonenumber == phonenumber)
@@ -147,6 +150,6 @@ def router(phonenumber, message, phase):
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)
-# entrypoint('+18134699727', 'hi')
-# entrypoint('+18134699727', 'flower')
-# entrypoint('+18134699727', '10')
+# entrypoint('', 'hi')
+# entrypoint('', 'flower')
+# entrypoint('', '10')
