@@ -1,14 +1,22 @@
 import requests, csv
-from config import GROUP_ID, KEY
+from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN
 from tinydb import TinyDB, Query
+from flask import Flask, request, redirect, Response, redirect
+from twilio.rest import Client
 
-phasedb = TinyDB('phase.json')
-hashdb = TinyDB('hash.json')
+app = Flask(__name__)
+client = Client(ACCOUNT_SID, AUTH_TOKEN)  # twilio connection
 
+phasedb = TinyDB('phase.json')  # www.tinydb.com holds the phases per user
+hashdb = TinyDB('hash.json')  # holds the returned results so hash can be used
 
+headers = {  # for AK
+    'Accept': 'application/json',
+}
 
 
 def isint(s):
+    '''Is the value an integer'''
     try:
         int(s)
         return True
@@ -16,33 +24,37 @@ def isint(s):
         return False
 
 
-headers = {
-    'Accept': 'application/json',
-}
+@app.route("/", methods=['GET', 'POST'])
+def twilioinput():
+    from_number = request.values.get('From', None)
 
-params = (
-    ('states', 'TN'),
-    ('productCodes', 'WORK'),
-)
+    if from_number:
+        incomingtxtbody = request.values.get('Body', None)
+        output=entrypoint(from_number,incomingtxtbody)
+        twilio_send(from_number,output)
+        return 'Disco'
+    else:
+        return 'No number'
 
-finallist = []
+def twilio_send(phonenumber,message):
+    '''responding to the user via twilio'''
+    client.messages.create(
+        to=phonenumber,
+        from_="+16158008868",
+        body=message)
 
-
-def entrypoint(phonenumber,message):
+def entrypoint(phonenumber, message):
     '''Twilio sends input here we grab number and see what phase use is in'''
-    print('Inside Entry point ')
-    phase=None
+    phase = None
+    output=''
     for item in phasedb:
         if item['phonenumber'] == phonenumber:
             phase = item['phase']
-            print('Found Number retrieving phase')
-            if phase==None:
-                print('Didnt find number creating new user:')
+            if phase == None:
                 phasedb.insert({'phonenumber': phonenumber, 'phase': 0})
-                phase=0
-        router(phonenumber,message,phase)
-        print(phase)
-        return 'ok'
+                phase = 0
+        output=router(phonenumber, message, phase)
+        return output
 
 
 def kodiakwizard():
@@ -51,81 +63,82 @@ def kodiakwizard():
 
 def whatbusiness(phonenumber):
     '''sending initial message to user that is in phase 0 '''
-    print('Inside whatbusiness')
-    outputstring = 'Hi! Welcome to an implementation of Ask Kodiak and texting! What business type are you trying to get coverage for?(SIC, NAIC, Text works)\n\n:'
-    print(outputstring)
+    output = 'Hi! Welcome to a mashup of Ask Kodiak and twilio! What business type are you trying to get coverage for?(SIC, NAIC, Text works)'
 
     query = Query()
     phasedb.update({'phase': 1}, query.phonenumber == phonenumber)
-    # TODO sendtotwilio
+    return output
 
 
 def specificbusiness(phonenumber, term):
     '''10 search results returned for users in phase 1 '''
-    '\n\nWhich specific industry does the client fall most closely into from the above list?(Enter the number or 0 to search again)'
+    twilio_send(phonenumber,'Please wait while we grab the list')
+    output = '\n\nWhich specific industry does the client fall most closely into from the above list?(Enter the number or 0 to search again)\n\n'
     r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
     returnfromak = r.json()
     hits = returnfromak['hits']
-    outputstring = ''
+
 
     for hitcount, item in enumerate(hits):
-            outputstring = outputstring + str((hitcount + 1)) + ' ' + item['description'] + ' ' + item['hash'] + '\n'
+        output = output + str((hitcount + 1)) + ' ' + item['description'] + '\n'
 
-            hashdb.insert({'phonenumber': phonenumber,'id':hitcount + 1,'hash':item['hash'] })
+        hashdb.insert({'phonenumber': phonenumber, 'id': hitcount + 1, 'hash': item['hash']})
 
-    print('Output:\n', outputstring)
     query = Query()
     phasedb.update({'phase': 2}, query.phonenumber == phonenumber)
+    return output
 
 
 def finalresults(phonenumber, numericresult):
     '''send user list of carriers - phase 2 and reset phase'''
-    print('Inside Final Results')
-    hash=''
+    hash = ''
     for item in hashdb:
         if item['id'] == int(numericresult):
             hash = item['hash']
-
+    twilio_send(phonenumber, 'Please wait while we grab products - visit www.askkodiak.com for more!')
     r = requests.get(
         'https://api.askkodiak.com/v1/products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
 
     products = r.json()
     products = products['results']
-    output =''
+    output = ''
     for product in products:
-        #print(product['ownerId'])
+        # print(product['ownerId'])
         o = requests.get(
-            'https://api.askkodiak.com/v1/company/'+product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
-        owner=o.json()
+            'https://api.askkodiak.com/v1/company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
+        owner = o.json()
 
-        #print('*'*100,'\n',owner,'\n')
-        carriername=owner.get('name','No Company Name')
-        lob=product.get('name', 'No Product Name')
-        ambest=owner.get('amBest',{'rating':None})
-        ambestrating=owner.get('rating', 'No Ambest')
-        carrierphone=owner.get('phone','No Phone')
-        carriersite=owner.get('website','No site')
+        # print('*'*100,'\n',owner,'\n')
+        carriername = owner.get('name', 'No Company Name')
+        lob = product.get('name', 'No Product Name')
+        ambest = owner.get('amBest', {'rating': None})
+        ambestrating = owner.get('rating', 'No Ambest')
+        carrierphone = owner.get('phone', 'No Phone')
+        carriersite = owner.get('website', 'No site')
 
-        #print(lob,'by',carriername,ambestrating,carrierphone, carriersite)
-        output= output + lob + ' by '+ carriername+'. '+ambestrating+' '+carrierphone+' '+carriersite+'\n'
-        #print('OUTPUT:\n',output)
+        output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '\n\n'
 
     print(output)
     query = Query()
     hashdb.remove(query.phonenumber == phonenumber)
     phasedb.update({'phase': 0}, query.phonenumber == phonenumber)
+    return output
 
 
 def router(phonenumber, message, phase):
     '''what function should be called for what phase'''
+    output=''
     if phase == 0:
-        whatbusiness(phonenumber)
+        output= whatbusiness(phonenumber)
     elif phase == 1:
-        specificbusiness(phonenumber, message)
+        output=specificbusiness(phonenumber, message)
     elif phase == 2:
-            finalresults(phonenumber, message)
+        output=finalresults(phonenumber, message)
+    return output
 
 
-entrypoint('+18134699727', 'hi')
-entrypoint('+18134699727', 'flower')
-entrypoint('+18134699727', '10')
+if __name__ == '__main__':
+    app.run(debug=True, port=8000)
+# entrypoint('+18134699727', 'hi')
+# entrypoint('+18134699727', 'flower')
+# entrypoint('+18134699727', '10')

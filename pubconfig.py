@@ -4,3 +4,7 @@
 
 GROUP_ID ='Put your Group ID from https://app.askkodiak.com/#/admin/agency/profile/ here'
 KEY='Put your Key from https://app.askkodiak.com/#/admin/agency/profile/ here'
+
+#these are twilio creds - create a number and you will have these
+account_sid = ""
+auth_token = ""
