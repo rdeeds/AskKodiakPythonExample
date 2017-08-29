@@ -14,6 +14,9 @@ headers = {  # for AK
     'Accept': 'application/json',
 }
 
+@app.route("/")
+def nonumber():
+    return 'OK!'
 
 def isint(s):
     '''Is the value an integer'''
@@ -24,7 +27,7 @@ def isint(s):
         return False
 
 
-@app.route("/", methods=['GET', 'POST'])
+@app.route("/listen", methods=['GET', 'POST'])
 def twilioinput():
     from_number = request.values.get('From', None)
 
@@ -131,7 +134,7 @@ def finalresults(phonenumber, numericresult):
 
 
 def router(phonenumber, message, phase):
-    '''what function should be called for what phase'''
+    '''what function should be called for what phase easy to extend'''
     output=''
     if phase == 0:
         output= whatbusiness(phonenumber)
