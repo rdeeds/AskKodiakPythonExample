@@ -85,7 +85,7 @@ def kodiakwizard():
 
 def whatbusiness(phonenumber):
     '''sending initial message to user that is in phase 0 '''
-    output = 'Hi! Welcome to a mashup of Ask Kodiak and twilio! What business type are you trying to get coverage for?(SIC, NAIC, Text works)'
+    output = 'Hi! Welcome to a mashup of Ask Kodiak and twilio by Ryan Deeds! What business type are you trying to get coverage for?(SIC, NAIC, Text works)'
 
     query = Query()
     phasedb.update({'phase': 1}, query.phonenumber == phonenumber)
@@ -129,13 +129,29 @@ def finalresults(phonenumber, numericresult):
     output = ''
     listofcarriers = []
     listofcarriers.append(
-        {'lob': 'lob', 'carriername': 'carriername', 'ambestrating': 'ambestrating', 'carrierphone': 'carrierphone', 'carriersite': 'carriersite'})
+        {'searchedfor':'searchedfor','lob': 'lob', 'carriername': 'carriername', 'ambestrating': 'ambestrating', 'carrierphone': 'carrierphone', 'carriersite': 'carriersite','max':'max','min':'min','contactdetails':'contactdetails','guidelines':'guideline','carrierdesc':'carrierdesc','states':'states'})
 
     for product in products:
         # print(product['ownerId'])
         o = requests.get(
             'https://api.askkodiak.com/v1/company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
         owner = o.json()
+
+        access = owner.get('access', {'contact': {'description': 'No contact entered'}})
+        contact = access.get('contact')
+        contactdetails = contact.get('description')
+
+        premiums = owner.get('premiumSize', {'max': 'No Max Entered', 'min': 'No Min Entered'})
+        max = premiums.get('max')
+        min = premiums.get('min')
+
+        guidelines = ','.join(owner.get('guidelines', ['No Guidelines entered']))
+        states = ','.join(owner.get('states', 'No states entered'))
+        carrierdesc = owner.get('description', 'No Desc Entered')
+
+
+
+
 
         # print('*'*100,'\n',owner,'\n')
         carriername = owner.get('name', 'No Company Name')
@@ -144,9 +160,11 @@ def finalresults(phonenumber, numericresult):
         ambestrating = ambest.get('rating', 'No Ambest')
         carrierphone = owner.get('phone', 'No Phone')
         carriersite = owner.get('website', 'No site')
+        admitted = owner.get('admitted','no admitted rating')
+
 
         output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '  \n\n'
-        listofcarriers.append({'lob':lob,'carriername':carriername,'ambestrating':ambestrating,'carrierphone':carrierphone,'carriersite':carriersite})
+        listofcarriers.append({'searchedfor':desc, 'lob':lob,'carriername':carriername,'ambestrating':ambestrating,'carrierphone':carrierphone,'carriersite':carriersite,'max':max, 'min':min, 'contactdetails':contactdetails, 'guidelines':guidelines, 'carrierdesc':carrierdesc, 'states':states})
         fname=randalphnum(15)
 
     if len(output)<5:
