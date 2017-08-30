@@ -205,7 +205,7 @@ def router(phonenumber, message, phase):
     print(output)
     return output
 
-#entrypoint('+18134699727', '20')
+#entrypoint('+18134699727', '17')
 #entrypoint('+18134699727', 'flower')
 #entrypoint('+18134699727', '10')
 
