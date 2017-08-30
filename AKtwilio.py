@@ -1,5 +1,5 @@
 import requests, csv, random
-from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN
+from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN,PATH
 from tinydb import TinyDB, Query
 from flask import Flask, request, redirect, Response, redirect
 from twilio.rest import Client
@@ -41,15 +41,14 @@ def randalphnum(count):
 @app.route("/listen", methods=['GET', 'POST'])
 def twilioinput():
     from_number = request.values.get('From', None)
+    print('Inside Twilio')
 
     if from_number:
         incomingtxtbody = request.values.get('Body', None)
         debuggdb.insert({'phonenumber': from_number, 'response': incomingtxtbody})
-        output=entrypoint(from_number,incomingtxtbody)
-        twilio_send(from_number,output)
-        if incomingtxtbody=='0':
-            router(from_number,'hi',0)
-            return 'Disco'
+        print('Incoming Text Body',incomingtxtbody)
+        output = entrypoint(from_number, incomingtxtbody)
+        twilio_send(from_number, output)
 
         return 'Disco'
     else:
@@ -67,6 +66,10 @@ def entrypoint(phonenumber, message):
     print('Inside Entry point')
     phase = None
     output=''
+    if message=='0':
+        query = Query()
+        phasedb.update({'phase': 0}, query.phonenumber == phonenumber)
+
     for item in phasedb:
         if item['phonenumber'] == phonenumber:
             phase = item['phase']
@@ -98,6 +101,7 @@ def specificbusiness(phonenumber, term):
     output = '\n\nWhich specific industry does the client fall most closely into from the list?(Enter the number or 0 to search again)\n\n'
     r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
     returnfromak = r.json()
+    print(returnfromak)
     hits = returnfromak['hits']
 
 
@@ -108,6 +112,7 @@ def specificbusiness(phonenumber, term):
 
     query = Query()
     phasedb.update({'phase': 2}, query.phonenumber == phonenumber)
+
     return output
 
 
@@ -115,75 +120,76 @@ def finalresults(phonenumber, numericresult):
     '''send user list of carriers - phase 2 and reset phase'''
     hash = ''
     desc =''
-    for item in hashdb:
-        if item['id'] == int(numericresult) and item['phonenumber']==phonenumber:
-            hash = item['hash']
-            desc=item['desc']
-    twilio_send(phonenumber, 'Retrieving products for {} - visit www.askkodiak.com for more!'.format(desc))
-    r = requests.get(
-        'https://api.askkodiak.com/v1/products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
+    if isint(numericresult):
+        for item in hashdb:
+            if item['id'] == int(numericresult) and item['phonenumber']==phonenumber:
+                hash = item['hash']
+                desc=item['desc']
+        twilio_send(phonenumber, 'Retrieving products for {} - visit www.askkodiak.com for more!'.format(desc))
+        r = requests.get(
+            'https://api.askkodiak.com/v1/products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
 
-    products = r.json()
-    print(products)
-    products = products['results']
-    output = ''
-    listofcarriers = []
-    listofcarriers.append(
-        {'searchedfor':'searchedfor','lob': 'lob', 'carriername': 'carriername', 'ambestrating': 'ambestrating', 'carrierphone': 'carrierphone', 'carriersite': 'carriersite','max':'max','min':'min','contactdetails':'contactdetails','guidelines':'guideline','carrierdesc':'carrierdesc','states':'states'})
+        products = r.json()
+        print(products)
+        products = products['results']
+        output = ''
+        listofcarriers = []
+        listofcarriers.append(
+            {'searchedfor':'searchedfor','lob': 'lob', 'carriername': 'carriername', 'ambestrating': 'ambestrating', 'carrierphone': 'carrierphone', 'carriersite': 'carriersite','max':'max','min':'min','contactdetails':'contactdetails','guidelines':'guideline','carrierdesc':'carrierdesc','states':'states'})
 
-    for product in products:
-        # print(product['ownerId'])
-        o = requests.get(
-            'https://api.askkodiak.com/v1/company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
-        owner = o.json()
+        for product in products:
+            # print(product['ownerId'])
+            o = requests.get(
+                'https://api.askkodiak.com/v1/company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
+            owner = o.json()
 
-        access = owner.get('access', {'contact': {'description': 'No contact entered'}})
-        contact = access.get('contact')
-        contactdetails = contact.get('description')
+            access = owner.get('access', {'contact': {'description': 'No contact entered'}})
+            contact = access.get('contact')
+            contactdetails = contact.get('description')
 
-        premiums = owner.get('premiumSize', {'max': 'No Max Entered', 'min': 'No Min Entered'})
-        max = premiums.get('max')
-        min = premiums.get('min')
+            premiums = owner.get('premiumSize', {'max': 'No Max Entered', 'min': 'No Min Entered'})
+            max = premiums.get('max')
+            min = premiums.get('min')
 
-        guidelines = ','.join(owner.get('guidelines', ['No Guidelines entered']))
-        states = ','.join(owner.get('states', 'No states entered'))
-        carrierdesc = owner.get('description', 'No Desc Entered')
-
-
-
+            guidelines = ','.join(owner.get('guidelines', ['No Guidelines entered']))
+            states = ','.join(owner.get('states', ['No states entered']))
+            carrierdesc = owner.get('description', 'No Desc Entered')
 
 
-        # print('*'*100,'\n',owner,'\n')
-        carriername = owner.get('name', 'No Company Name')
-        lob = product.get('name', 'No Product Name')
-        ambest = owner.get('amBest', {'rating': 'No Ambest'})
-        ambestrating = ambest.get('rating', 'No Ambest')
-        carrierphone = owner.get('phone', 'No Phone')
-        carriersite = owner.get('website', 'No site')
-        admitted = owner.get('admitted','no admitted rating')
 
 
-        output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '  \n\n'
-        listofcarriers.append({'searchedfor':desc, 'lob':lob,'carriername':carriername,'ambestrating':ambestrating,'carrierphone':carrierphone,'carriersite':carriersite,'max':max, 'min':min, 'contactdetails':contactdetails, 'guidelines':guidelines, 'carrierdesc':carrierdesc, 'states':states})
-        fname=randalphnum(15)
 
-    if len(output)<5:
-        output = 'No Results! Darn it Try again!'
+            # print('*'*100,'\n',owner,'\n')
+            carriername = owner.get('name', 'No Company Name')
+            lob = product.get('name', 'No Product Name')
+            ambest = owner.get('amBest', {'rating': 'No Ambest'})
+            ambestrating = ambest.get('rating', 'No Ambest')
+            carrierphone = owner.get('phone', 'No Phone')
+            carriersite = owner.get('website', 'No site')
+            admitted = owner.get('admitted','no admitted rating')
+
+
+            output = output + lob + ' by ' + carriername + '. ' + ambestrating + ' ' + carrierphone + ' ' + carriersite + '  \n\n'
+            listofcarriers.append({'searchedfor':desc, 'lob':lob,'carriername':carriername,'ambestrating':ambestrating,'carrierphone':carrierphone,'carriersite':carriersite,'max':max, 'min':min, 'contactdetails':contactdetails, 'guidelines':guidelines, 'carrierdesc':carrierdesc, 'states':states})
+            fname=randalphnum(15)
+
+        if len(output)<5:
+            output = 'No Results! Darn it Try again!'
+        else:
+            output=output +'\n Carrier Details in this file: https//uyht3.pythonanywhere.com/static/fileupload/'+fname+'.csv'
+            with open(PATH+'{}.csv'.format(fname), 'w', newline='') as output_file:
+                keys = listofcarriers[0].keys()
+                dict_writer = csv.DictWriter(output_file, keys)
+                dict_writer.writeheader()
+                dict_writer.writerows(listofcarriers[1:])
+
+
+        query = Query()
+        hashdb.remove(query.phonenumber == phonenumber)
+        phasedb.update({'phase': 0}, query.phonenumber == phonenumber)
     else:
-        output=output +'\n Carrier Details in this file: https//uyht3.pythonanywhere.com/static/fileupload/'+fname+'.csv'
-        with open('/home/uyht3/AK/static/fileupload/{}.csv'.format(fname), 'w', newline='') as output_file:
-            keys = listofcarriers[0].keys()
-            dict_writer = csv.DictWriter(output_file, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(listofcarriers[1:])
-            print()
+        output= 'I need a number for this one. Pick an item from the previous list and enter a number. 0 Will reset you.'
 
-
-
-    print(output)
-    query = Query()
-    hashdb.remove(query.phonenumber == phonenumber)
-    phasedb.update({'phase': 0}, query.phonenumber == phonenumber)
     return output
 
 
@@ -196,11 +202,14 @@ def router(phonenumber, message, phase):
         output=specificbusiness(phonenumber, message)
     elif phase == 2:
         output=finalresults(phonenumber, message)
+    print(output)
     return output
 
+entrypoint('+18134699727', '10')
+#entrypoint('+18134699727', 'flower')
+#entrypoint('+18134699727', '10')
 
-if __name__ == '__main__':
-    app.run(debug=True, port=8000)
-# entrypoint('', 'hi')
-# entrypoint('', 'flower')
-# entrypoint('', '10')
+
+
+#if __name__ == '__main__':
+ #  app.run(debug=True, port=8000)

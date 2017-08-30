@@ -8,3 +8,5 @@ KEY='Put your Key from https://app.askkodiak.com/#/admin/agency/profile/ here'
 #these are twilio creds - create a number and you will have these
 account_sid = ""
 auth_token = ""
+
+PATH="Put the path of the folders you want to host the csv in"
