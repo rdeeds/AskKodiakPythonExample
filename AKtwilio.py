@@ -1,5 +1,5 @@
 import requests, csv, random
-from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN,PATH
+from config import GROUP_ID, KEY, ACCOUNT_SID, AUTH_TOKEN,PATH, APIPATH
 from tinydb import TinyDB, Query
 from flask import Flask, request, redirect, Response, redirect
 from twilio.rest import Client
@@ -99,7 +99,7 @@ def specificbusiness(phonenumber, term):
     '''10 search results returned for users in phase 1 '''
     twilio_send(phonenumber,'Please wait while we grab the list - it takes a few seconds - check out www.askkodiak.com while you wait')
     output = '\n\nWhich specific industry does the client fall most closely into from the list?(Enter the number or 0 to search again)\n\n'
-    r = requests.get('https://api.askkodiak.com/v1/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
+    r = requests.get(APIPATH+'/search/:' + term, headers=headers, auth=(GROUP_ID, KEY))
     returnfromak = r.json()
     print(returnfromak)
     hits = returnfromak['hits']
@@ -127,7 +127,7 @@ def finalresults(phonenumber, numericresult):
                 desc=item['desc']
         twilio_send(phonenumber, 'Retrieving products for {} - visit www.askkodiak.com for more!'.format(desc))
         r = requests.get(
-            'https://api.askkodiak.com/v1/products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
+            APIPATH+'products/class-code/naics/' + hash, headers=headers, auth=(GROUP_ID, KEY))
 
         products = r.json()
         print(products)
@@ -140,7 +140,7 @@ def finalresults(phonenumber, numericresult):
         for product in products:
             # print(product['ownerId'])
             o = requests.get(
-                'https://api.askkodiak.com/v1/company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
+                APIPATH+'company/' + product['ownerId'], headers=headers, auth=(GROUP_ID, KEY))
             owner = o.json()
 
             access = owner.get('access', {'contact': {'description': 'No contact entered'}})
@@ -205,11 +205,11 @@ def router(phonenumber, message, phase):
     print(output)
     return output
 
-entrypoint('+18134699727', '10')
+#entrypoint('+18134699727', '20')
 #entrypoint('+18134699727', 'flower')
 #entrypoint('+18134699727', '10')
 
 
 
-#if __name__ == '__main__':
- #  app.run(debug=True, port=8000)
+if __name__ == '__main__':
+   app.run(debug=True, port=8000)
